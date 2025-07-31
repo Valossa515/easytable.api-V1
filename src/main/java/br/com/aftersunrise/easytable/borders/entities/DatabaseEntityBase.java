@@ -6,8 +6,7 @@ import org.springframework.data.annotation.Id;
 
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
