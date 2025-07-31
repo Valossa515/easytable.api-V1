@@ -3,6 +3,7 @@ package br.com.aftersunrise.easytable.shared.models;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.helpers.FileContentResult;
 import br.com.aftersunrise.easytable.shared.helpers.TrimmingJsonSerializer;
+import br.com.aftersunrise.easytable.shared.models.interfaces.IResponseEntityConverter;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,13 +20,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-interface IResponseEntityConverter {
-    <T> ResponseEntity<T> convert(HandlerResponseWithResult<T> response, boolean withContentOnSuccess);
-}
-
 @Component
 @Slf4j
-public class ResponseEntityConverterImpl implements  IResponseEntityConverter{
+public class ResponseEntityConverterImpl implements IResponseEntityConverter {
 
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
