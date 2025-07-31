@@ -61,7 +61,7 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
 
     @Override
     @Transactional
-    protected CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> doExecute(CreatePedidoRequest request) {
+    public CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> doExecute(CreatePedidoRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Comanda comanda = validarComanda(request.comandaId());

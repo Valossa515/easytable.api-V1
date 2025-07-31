@@ -14,22 +14,9 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("test")
 class ApplicationTests {
-	@MockBean
-	private PedidoRepository pedidoRepository;
-
-	@MockBean
-	private ItemCardapioRepository itemCardapioRepository;
-
-	@MockBean
-	private MesaRepository mesaRepository;
-
-	@MockBean
-	private ComandaRepository comandaRepository;
 
 	@Test
-
 	void contextLoads() {
-		final Logger logger = org.slf4j.LoggerFactory.getLogger(ApplicationTests.class);
-		logger.info("Contexto da aplicação carregado com sucesso.");
+
 	}
 }
