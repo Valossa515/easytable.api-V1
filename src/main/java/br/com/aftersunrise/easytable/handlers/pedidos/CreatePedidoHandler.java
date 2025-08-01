@@ -14,6 +14,7 @@ import br.com.aftersunrise.easytable.services.ComandaService;
 import br.com.aftersunrise.easytable.services.KafkaPedidoProducerService;
 import br.com.aftersunrise.easytable.services.RedisService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
+import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
@@ -72,10 +73,21 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
                 CreatePedidoResponse response = criarResponse(pedidoSalvo);
                 logger.info("Pedido feito com sucesso: {}", pedidoSalvo);
                 return created(response);
+            } catch (BusinessException ex) {
+                logger.error(ex.getMessage());
+                return badRequest(ex.getErrorMessage().getCode(), ex.getMessage());
+            } catch (IllegalArgumentException ex) {
+                logger.error(ex.getMessage());
+                return badRequest(
+                        MessageResources.get("error.invalid_items_code"),
+                        ex.getMessage()
+                );
             } catch (Exception ex) {
                 logger.error("Erro ao criar o pedido", ex);
-                return badRequest(MessageResources.get("error.create_item_error_code"),
-                        MessageResources.get("error.create_item_error"));
+                return badRequest(
+                        MessageResources.get("error.create_item_error_code"),
+                        MessageResources.get("error.create_item_error")
+                );
             }
         });
     }
