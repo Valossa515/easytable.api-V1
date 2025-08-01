@@ -1,6 +1,7 @@
 package br.com.aftersunrise.easytable.shared.models;
 
 import lombok.Data;
+import lombok.Getter;
 
 @Data
 public class Message {
