@@ -1,8 +1,12 @@
 package br.com.aftersunrise.easytable.api.controllers.pedidos;
 
 import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
 import br.com.aftersunrise.easytable.borders.dtos.responses.CreatePedidoResponse;
+import br.com.aftersunrise.easytable.borders.dtos.responses.UpdateStatusPedidoResponse;
 import br.com.aftersunrise.easytable.borders.handlers.ICreatePedidoHandler;
+import br.com.aftersunrise.easytable.borders.handlers.IUpdateStatusPedidoHandler;
+import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.models.Message;
 import br.com.aftersunrise.easytable.shared.models.interfaces.IResponseEntityConverter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,10 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -26,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 public class PedidoController {
 
     private final ICreatePedidoHandler createPedidoHandler;
+    private final IUpdateStatusPedidoHandler updateStatusPedidoHandler;
     private final IResponseEntityConverter responseEntityConverter;
 
     @Operation(
@@ -47,6 +49,30 @@ public class PedidoController {
     public CompletableFuture<ResponseEntity<CreatePedidoResponse>> createPedido(
             @RequestBody CreatePedidoRequest request) {
         return createPedidoHandler.execute(request)
+                .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
+    }
+
+    @Operation(
+            summary = "Atualiza o status de um pedido",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Atualizado com sucesso",
+                            content = @Content(schema = @Schema(implementation = UpdateStatusPedidoResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "Requisição inválida",
+                            content = @Content(schema = @Schema(implementation = Message[].class))),
+                    @ApiResponse(responseCode = "401", description = "Não autorizado",
+                            content = @Content(schema = @Schema(implementation = Message[].class))),
+                    @ApiResponse(responseCode = "403", description = "Acesso proibido",
+                            content = @Content(schema = @Schema(implementation = Message[].class))),
+                    @ApiResponse(responseCode = "500", description = "Erro interno",
+                            content = @Content(schema = @Schema(implementation = Message[].class)))
+            }
+    )
+    @PatchMapping("/{id}/status")
+    public CompletableFuture<ResponseEntity<UpdateStatusPedidoResponse>> updatePedidoStatus(
+            @PathVariable String id,
+            @RequestParam PedidoStatus status) {
+        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(id, status);
+        return updateStatusPedidoHandler.execute(request)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
 }

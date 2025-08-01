@@ -2,6 +2,7 @@ package br.com.aftersunrise.easytable.borders.adapters;
 
 import br.com.aftersunrise.easytable.borders.adapters.interfaces.IPedidoAdapter;
 import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
@@ -34,5 +35,12 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository) {
                 .dataHora(new Date())
                 .status(PedidoStatus.PENDENTE)
                 .build();
+    }
+
+    @Override
+    public void updatePedido(Pedido pedido, UpdateStatusPedidoRequest request) {
+        if (request.status() != null) {
+            pedido.setStatus(request.status());
+        }
     }
 }
