@@ -16,7 +16,9 @@ import br.com.aftersunrise.easytable.services.ComandaService;
 import br.com.aftersunrise.easytable.services.KafkaPedidoProducerService;
 import br.com.aftersunrise.easytable.services.RedisService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
+import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
+import br.com.aftersunrise.easytable.shared.properties.MessageResources;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +26,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.mongodb.UncategorizedMongoDbException;
+import org.springframework.http.HttpStatus;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -34,8 +39,7 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class CreatePedidoHandlerTests {
@@ -122,9 +126,9 @@ public class CreatePedidoHandlerTests {
 
         pedidoSalvo = pedido;
 
-        when(qrCodeProperties.getBaseUrl()).thenReturn("http://qrcode/");
-        when(qrCodeProperties.getStatusPath()).thenReturn("status/{id}");
-        when(qrCodeProperties.getContaPath()).thenReturn("conta/{id}");
+        lenient().when(qrCodeProperties.getBaseUrl()).thenReturn("http://qrcode/");
+        lenient().when(qrCodeProperties.getStatusPath()).thenReturn("status/{id}");
+        lenient().when(qrCodeProperties.getContaPath()).thenReturn("conta/{id}");
     }
 
     @Test
@@ -157,5 +161,115 @@ public class CreatePedidoHandlerTests {
         verify(pedidoRepository).save(pedido);
         verify(redisService).salvar(eq("pedido:pedido123"), any(Pedido.class), eq(60L)); // Alterado para 60L
         verify(kafkaService).enviarPedidoCriado(pedidoSalvo);
+    }
+
+    @Test
+    void doExecute_DeveRetornarErroQuandoComandaInvalida() throws ExecutionException, InterruptedException {
+        // Arrange
+        String errorCode = "COM404";
+        String errorMessage = "Comanda inválida";
+        when(comandaService.validarComanda("comanda456"))
+                .thenThrow(new BusinessException(errorCode, errorMessage, HttpStatus.BAD_REQUEST));
+
+        // Act
+        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
+        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertNull(response.getResult());
+        assertEquals(errorMessage, response.getMessages().getFirst().getText());
+        assertEquals(errorCode, response.getMessages().getFirst().getCode());
+
+        verify(comandaService).validarComanda("comanda456");
+        verifyNoInteractions(pedidoAdapter, itemCardapioRepository, pedidoRepository, redisService, kafkaService);
+    }
+
+    @Test
+    void doExecute_DeveRetornarErroGenericoQuandoOcorrerExcecaoInesperada() throws ExecutionException, InterruptedException {
+        // Arrange
+        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
+        when(itemCardapioRepository.findAllById(request.itensIds()))
+                .thenThrow(new RuntimeException("Erro inesperado"));
+
+        // Act
+        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
+        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertNull(response.getResult());
+        assertEquals(MessageResources.get("error.create_item_error"),
+                response.getMessages().getFirst().getText());
+        assertEquals(MessageResources.get("error.create_item_error_code"),
+                response.getMessages().getFirst().getCode());
+
+        verify(comandaService).validarComanda("comanda456");
+        verify(pedidoAdapter).toPedido(request);
+        verify(itemCardapioRepository).findAllById(request.itensIds());
+        verifyNoInteractions(pedidoRepository, redisService, kafkaService);
+    }
+
+    @Test
+    void doExecute_DeveRetornarErroQuandoItensForemInvalidos() throws ExecutionException, InterruptedException {
+        // Arrange
+        List<ItemCardapio> itensIncompletos = List.of(itens.get(0)); // Apenas 1 item
+        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
+        when(itemCardapioRepository.findAllById(request.itensIds())).thenReturn(itensIncompletos);
+
+        // Act
+        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
+        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertNull(response.getResult());
+        assertEquals(MessageResources.get("error.invalid_items_code"),
+                response.getMessages().getFirst().getCode());
+        assertEquals(MessageResources.get("error.invalid_items_code"), // ou outra mensagem específica
+                response.getMessages().getFirst().getText());
+
+        verify(comandaService).validarComanda("comanda456");
+        verify(pedidoAdapter).toPedido(request);
+        verify(itemCardapioRepository).findAllById(request.itensIds());
+        verifyNoInteractions(pedidoRepository, redisService, kafkaService);
+    }
+
+    @Test
+    void doExecute_DeveRetornarErroGenericoQuandoExcecaoNaoEsperadaOcorrer() throws ExecutionException, InterruptedException {
+        // Arrange
+        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
+        when(itemCardapioRepository.findAllById(any())).thenReturn(itens);
+
+        // Simula uma exceção genérica (não BusinessException)
+        doThrow(new RuntimeException("Simulando erro não esperado"))
+                .when(pedidoRepository).save(any(Pedido.class));
+
+        // Act
+        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
+        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertNull(response.getResult());
+
+        // Verifica se retornou a mensagem genérica do MessageResources
+        assertEquals(MessageResources.get("error.create_item_error"),
+                response.getMessages().getFirst().getText());
+
+        // Verifica se retornou o código genérico do MessageResources
+        assertEquals(MessageResources.get("error.create_item_error_code"),
+                response.getMessages().getFirst().getCode());
+
+        // Verifica o status code
+        assertEquals(400, response.getStatusCode());
+
+        // Verificações de interação
+        verify(pedidoRepository).save(any(Pedido.class));
+        verify(kafkaService, never()).enviarPedidoCriado(any());
+        verify(redisService, never()).salvar(any(), any(), anyLong());
     }
 }
