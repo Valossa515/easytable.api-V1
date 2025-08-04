@@ -23,7 +23,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class UpdateStatusPedidoHandlerTest {
+public class UpdateStatusPedidoHandlerTests {
 
     @Mock
     private PedidoRepository pedidoRepository;
@@ -92,4 +92,26 @@ public class UpdateStatusPedidoHandlerTest {
         assertFalse(response.isSuccess());
         assertEquals("Database error", response.getMessages().getFirst().getText());
     }
+
+    @Test
+    void testRemoveFromReisPedidoWhenPedidoStatusEqualPronto() {
+        String pedidoId = UUID.randomUUID().toString();
+        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.PRONTO);
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(PedidoStatus.EM_PREPARACAO);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        doAnswer(invocation -> {
+            Pedido updatedPedido = invocation.getArgument(0);
+            updatedPedido.setStatus(request.status());
+            return null;
+        }).when(pedidoAdapter).updatePedido(pedido, request);
+        when(pedidoRepository.save(pedido)).thenReturn(pedido);
+
+        handler.execute(request).join();
+
+        assertEquals(PedidoStatus.PRONTO, pedido.getStatus());
+    }
+
 }
