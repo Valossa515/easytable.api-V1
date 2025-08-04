@@ -169,10 +169,25 @@ public class PedidoService {
         });
     }
 
+
     public CompletableFuture<Comanda> getComandaInfo(String codigoQR) {
         return CompletableFuture.supplyAsync(() ->
                 comandaRepository.findByCodigoQR(codigoQR)
                         .orElseThrow(() -> new RuntimeException("Comanda não encontrada"))
         );
+    }
+
+    public CompletableFuture<Comanda> reabrirComanda(String codigoQR) {
+        return CompletableFuture.supplyAsync(() -> {
+            Comanda comanda = comandaRepository.findByCodigoQR(codigoQR)
+                    .orElseThrow(() -> new RuntimeException("Comanda não encontrada"));
+
+            if (comanda.isAtiva()) {
+                throw new RuntimeException("Comanda já está ativa");
+            }
+
+            comanda.setAtiva(true);
+            return comandaRepository.save(comanda);
+        });
     }
 }
