@@ -103,4 +103,11 @@ public abstract class HandlerBase<TInput, TOutput> implements IHandler<TInput, T
         response.setMessages(List.of(new Message(MessageResources.get("forbidden.error_code"), MessageResources.get("forbidden.error_message") )));
         return response;
     }
+
+    protected HandlerResponseWithResult<TOutput> internalServerError(String code, String message) {
+        HandlerResponseWithResult<TOutput> response = new HandlerResponseWithResult<>();
+        response.setStatusCode(500);
+        response.setMessages(List.of(new Message(code, message)));
+        return response;
+    }
 }

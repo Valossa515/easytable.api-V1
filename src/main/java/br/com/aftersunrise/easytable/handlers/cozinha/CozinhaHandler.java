@@ -5,6 +5,7 @@ import br.com.aftersunrise.easytable.borders.dtos.responses.ListaPedidosResponse
 import br.com.aftersunrise.easytable.borders.dtos.responses.PedidoResponse;
 import br.com.aftersunrise.easytable.borders.handlers.IListPedidosHandler;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
+import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import jakarta.validation.Validator;
@@ -31,7 +32,10 @@ public class CozinhaHandler
     @Override
     protected CompletableFuture<HandlerResponseWithResult<ListaPedidosResponse>> doExecute(ListaPedidosRequest request) {
         try {
-            var pedidos = pedidoRepository.findAll();
+            var pedidos = pedidoRepository.findAll().stream()
+                    .filter(p -> p.getStatus() != PedidoStatus.PRONTO && p.getStatus() != PedidoStatus.ENTREGUE)
+                    .toList();
+
             var dtos = pedidos.stream()
                     .map(PedidoResponse::fromEntity)
                     .toList();
