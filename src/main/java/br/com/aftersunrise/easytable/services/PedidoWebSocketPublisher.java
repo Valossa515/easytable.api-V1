@@ -15,4 +15,8 @@ public class PedidoWebSocketPublisher {
     public void enviarParaCozinha(Pedido pedido) {
         messagingTemplate.convertAndSend("/topic/pedidos", PedidoResponse.fromEntity(pedido));
     }
+
+    public void removerDaCozinha(String pedidoId) {
+        messagingTemplate.convertAndSend("/topic/pedidos/remover", pedidoId);
+    }
 }
