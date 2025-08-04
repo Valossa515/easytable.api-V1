@@ -6,7 +6,9 @@ import br.com.aftersunrise.easytable.borders.dtos.responses.UpdateStatusPedidoRe
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.borders.handlers.IUpdateStatusPedidoHandler;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
+import br.com.aftersunrise.easytable.services.PedidoWebSocketPublisher;
 import br.com.aftersunrise.easytable.services.RedisService;
+import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
@@ -26,16 +28,19 @@ implements IUpdateStatusPedidoHandler {
     private final PedidoRepository pedidoRepository;
     private final RedisService redisService;
     private final IPedidoAdapter pedidoAdapter;
+    private final PedidoWebSocketPublisher webSocketPublisher;
 
     public UpdateStatusPedidoHandler(
             Validator validator,
             PedidoRepository pedidoRepository,
             RedisService redisService,
-            IPedidoAdapter pedidoAdapter) {
+            IPedidoAdapter pedidoAdapter,
+            PedidoWebSocketPublisher webSocketPublisher) {
         super(logger,validator);
         this.pedidoRepository = pedidoRepository;
         this.redisService = redisService;
         this.pedidoAdapter = pedidoAdapter;
+        this.webSocketPublisher = webSocketPublisher;
     }
 
 
@@ -59,6 +64,12 @@ implements IUpdateStatusPedidoHandler {
             pedidoRepository.save(pedido);
 
             redisService.salvar("pedido:" + pedido.getId(), pedido, 60);
+
+            if (pedido.getStatus() == PedidoStatus.PRONTO) {
+                redisService.deletar("pedido:" + pedido.getId());
+                webSocketPublisher.removerDaCozinha(pedido.getId());
+                logger.info("Pedido {} marcado como PRONTO, removido do Redis e notificado via WebSocket", pedido.getId());
+            }
 
             logger.info("Status do pedido atualizado para {}", pedido.getStatus());
 
