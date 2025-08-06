@@ -160,11 +160,16 @@ public class PedidoService {
             comanda.setAtiva(false);
             comandaRepository.save(comanda);
 
-            // 5. Limpar cache
+            for (Pedido pedido : pedidos) {
+                pedido.setStatus(PedidoStatus.PAGO);
+                pedidoRepository.save(pedido);
+            }
+
+            // 6. Limpar cache
             String cacheKey = COMANDA_PEDIDOS_CACHE_PREFIX + comanda.getId();
             redisService.deletar(cacheKey);
 
-            // 6. Retornar resposta com total e info da comanda
+            // 7. Retornar resposta com total e info da comanda
             return new FechamentoResponse(comanda.getId(), total, "Conta fechada com sucesso");
         });
     }

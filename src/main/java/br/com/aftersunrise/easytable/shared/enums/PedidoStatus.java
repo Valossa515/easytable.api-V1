@@ -10,5 +10,6 @@ public enum PedidoStatus {
     EM_PREPARACAO,
     PRONTO,
     ENTREGUE,
-    CANCELADO;
+    CANCELADO,
+    PAGO;
 }
