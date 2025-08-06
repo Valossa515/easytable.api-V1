@@ -33,7 +33,8 @@ public class CozinhaHandler
     protected CompletableFuture<HandlerResponseWithResult<ListaPedidosResponse>> doExecute(ListaPedidosRequest request) {
         try {
             var pedidos = pedidoRepository.findAll().stream()
-                    .filter(p -> p.getStatus() != PedidoStatus.PRONTO && p.getStatus() != PedidoStatus.ENTREGUE)
+                    .filter(p -> p.getStatus() != PedidoStatus.PRONTO && p.getStatus() != PedidoStatus.ENTREGUE
+                    && p.getStatus() != PedidoStatus.PAGO)
                     .toList();
 
             var dtos = pedidos.stream()
