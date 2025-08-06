@@ -8,6 +8,7 @@ import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.borders.handlers.ICreatePedidoHandler;
 import br.com.aftersunrise.easytable.configs.QrCodeProperties;
+import br.com.aftersunrise.easytable.repositories.ComandaRepository;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
 import br.com.aftersunrise.easytable.services.ComandaService;
@@ -17,10 +18,12 @@ import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
+import br.com.aftersunrise.easytable.shared.models.ErrorMessage;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
 import jakarta.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,7 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
     private final QrCodeProperties qrCodeProperties;
     private final ComandaService comandaService;
     private final ItemCardapioRepository itemCardapioRepository;
+    private final ComandaRepository comandaRepository;
 
     public CreatePedidoHandler(
             Validator validator,
@@ -49,7 +53,9 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
             RedisService redisService,
             QrCodeProperties qrCodeProperties,
             ComandaService comandaService,
-            ItemCardapioRepository itemCardapioRepository) {
+            ItemCardapioRepository itemCardapioRepository,
+            ComandaRepository comandaRepository
+    ) {
         super(logger, validator);
         this.pedidoRepository = pedidoRepository;
         this.pedidoAdapter = pedidoAdapter;
@@ -58,6 +64,7 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
         this.qrCodeProperties = qrCodeProperties;
         this.comandaService = comandaService;
         this.itemCardapioRepository = itemCardapioRepository;
+        this.comandaRepository = comandaRepository;
     }
 
     @Override
@@ -65,7 +72,7 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
     public CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> doExecute(CreatePedidoRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Comanda comanda = validarComanda(request.comandaId());
+                Comanda comanda = validarComanda(request.comandaId(), request.mesaId());
                 Pedido pedido = montarPedido(request, comanda);
                 validarItens(pedido, request.itensIds());
                 Pedido pedidoSalvo = salvarPedido(pedido);
@@ -92,8 +99,8 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
         });
     }
 
-    public Comanda validarComanda(String comandaId) {
-        return comandaService.validarComanda(comandaId);
+    public Comanda validarComanda(String comandaId, String mesaId) {
+        return comandaService.validarComanda(comandaId, mesaId);
     }
 
     public void posSalvar(Pedido pedidoSalvo) {
@@ -122,10 +129,14 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
     }
 
     public CreatePedidoResponse criarResponse(Pedido pedidoSalvo) {
-        String qrCodeAcompanhamentoUrl = qrCodeProperties.getBaseUrl() +
-                qrCodeProperties.getStatusPath().replace("{id}", pedidoSalvo.getId());
-        String qrCodeContaUrl = qrCodeProperties.getBaseUrl() +
-                qrCodeProperties.getContaPath().replace("{id}", pedidoSalvo.getId());
+        Comanda comanda = comandaRepository.findById(pedidoSalvo.getComandaId())
+                .orElseThrow(() -> new BusinessException(
+                        new ErrorMessage("COM404", "Comanda não encontrada"),
+                        HttpStatus.NOT_FOUND
+                ));
+
+        String qrCodeFechamentoUrl = qrCodeProperties.getBaseUrl() +
+                qrCodeProperties.getFechamentoPath().replace("{codigoQR}", comanda.getCodigoQR());
 
         return new CreatePedidoResponse(
                 pedidoSalvo.getId(),
@@ -134,8 +145,7 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
                 pedidoSalvo.getItens(),
                 pedidoSalvo.getDataHora(),
                 pedidoSalvo.getStatus(),
-                qrCodeAcompanhamentoUrl,
-                qrCodeContaUrl
+                qrCodeFechamentoUrl
         );
     }
 }

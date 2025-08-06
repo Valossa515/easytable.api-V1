@@ -1,6 +1,7 @@
 package br.com.aftersunrise.easytable.services;
 
 import br.com.aftersunrise.easytable.borders.dtos.responses.FechamentoResponse;
+import br.com.aftersunrise.easytable.borders.dtos.responses.PedidoResponse;
 import br.com.aftersunrise.easytable.borders.entities.Comanda;
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
@@ -165,12 +166,16 @@ public class PedidoService {
                 pedidoRepository.save(pedido);
             }
 
+            List<PedidoResponse> pedidosResponse = pedidos.stream()
+                    .map(PedidoResponse::fromEntity)
+                    .toList();
+
             // 6. Limpar cache
             String cacheKey = COMANDA_PEDIDOS_CACHE_PREFIX + comanda.getId();
             redisService.deletar(cacheKey);
 
             // 7. Retornar resposta com total e info da comanda
-            return new FechamentoResponse(comanda.getId(), total, "Conta fechada com sucesso");
+            return new FechamentoResponse(comanda.getId(), pedidosResponse, total, "Conta fechada com sucesso");
         });
     }
 
