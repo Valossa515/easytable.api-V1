@@ -125,16 +125,19 @@ public class PopularDatabase {
                     log.info("Comanda existente para a mesa {} com código: {}", mesa.getNumero(), comanda.getCodigoQR());
                 }
 
-                String unifiedQrCodeContent = String.format(
-                        "{\"comanda\":\"%s\", \"mesaId\":\"%s\", \"url_inicial\":\"%s/novo-pedido?comanda=%s\"}",
-                        comanda.getCodigoQR(),
-                        mesa.getId(),
-                        qrCodeProperties.getBaseUrl(),
-                        comanda.getCodigoQR()
-                );
+                String urlFechamento = qrCodeProperties.getBaseUrl()
+                        + qrCodeProperties.getFechamentoPath().replace("{codigoQR}", comanda.getCodigoQR());
 
+                String conteudoQrCode = """
+                {
+                  "comandaId": "%s",
+                  "mesaId": "%s",
+                  "codigoQR": "%s",
+                  "fechamento-path": "%s"
+                }
+                """.formatted(comanda.getId(), mesa.getId(), comanda.getCodigoQR(), urlFechamento);
                 try {
-                    byte[] unifiedQrCodeImage = qrCodeService.generateQRCode(unifiedQrCodeContent);
+                    byte[] unifiedQrCodeImage = qrCodeService.generateQRCode(conteudoQrCode);
 
                     String filename = "qrcode_comanda_mesa_" + mesa.getNumero() + "_" + comanda.getId() + ".png";
                     String outputPath = Paths.get(qrCodeOutputDirectory, filename).toString();

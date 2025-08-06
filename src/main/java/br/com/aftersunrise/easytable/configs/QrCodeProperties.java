@@ -11,7 +11,5 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class QrCodeProperties {
     private String baseUrl;
-    private String statusPath;
-    private String contaPath;
-    private String acompanhamentoPath;
+    private String fechamentoPath; // atualizado
 }

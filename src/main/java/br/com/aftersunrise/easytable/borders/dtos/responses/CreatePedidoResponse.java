@@ -13,6 +13,5 @@ public record CreatePedidoResponse(
         List<ItemCardapio> itens,
         Date dataHora,
         PedidoStatus status,
-        String qrCodeAcompanhamentoUrl,
-        String qrCodeContaUrl
+        String qrCodeUrl
 ) { }

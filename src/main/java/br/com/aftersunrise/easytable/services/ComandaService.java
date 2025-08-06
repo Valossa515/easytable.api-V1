@@ -27,12 +27,19 @@ public class ComandaService {
         return comandaRepository.save(comanda);
     }
 
-    public Comanda validarComanda(String comandaId) {
+    public Comanda validarComanda(String comandaId, String mesaId) {
         Comanda comanda = comandaRepository.findById(comandaId)
                 .orElseThrow(() -> new BusinessException(
                         new ErrorMessage("COM404", "Comanda não encontrada"),
                         HttpStatus.NOT_FOUND
                 ));
+        if(!comanda.getMesaId().equals(mesaId))
+        {
+            throw new BusinessException(
+                    new ErrorMessage("COM403", "Comanda não pertence à mesa informada"),
+                    HttpStatus.FORBIDDEN
+            );
+        }
         if (!comanda.isAtiva()) {
             throw new BusinessException(
                     new ErrorMessage("COM400", "Comanda não está ativa"),
