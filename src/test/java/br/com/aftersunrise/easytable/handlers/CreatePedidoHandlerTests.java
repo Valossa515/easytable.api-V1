@@ -125,14 +125,12 @@ public class CreatePedidoHandlerTests {
         pedidoSalvo = pedido;
 
         lenient().when(qrCodeProperties.getBaseUrl()).thenReturn("http://qrcode/");
-        lenient().when(qrCodeProperties.getStatusPath()).thenReturn("status/{id}");
-        lenient().when(qrCodeProperties.getContaPath()).thenReturn("conta/{id}");
     }
 
     @Test
     void doExecute_DeveCriarPedidoComSucesso() throws ExecutionException, InterruptedException {
         // Arrange
-        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
         when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
         when(itemCardapioRepository.findAllById(request.itensIds())).thenReturn(itens);
         when(pedidoRepository.save(pedido)).thenReturn(pedidoSalvo);
@@ -149,11 +147,9 @@ public class CreatePedidoHandlerTests {
         assertEquals(2, response.getResult().itens().size());
         assertEquals(PedidoStatus.PENDENTE, response.getResult().status());
         assertNotNull(response.getResult().dataHora());
-        assertTrue(response.getResult().qrCodeAcompanhamentoUrl().contains("pedido123"));
-        assertTrue(response.getResult().qrCodeContaUrl().contains("pedido123"));
 
         // Verifica se os métodos foram chamados corretamente
-        verify(comandaService).validarComanda("comanda456");
+        verify(comandaService).validarComanda("comanda456", "mesa123");
         verify(pedidoAdapter).toPedido(request);
         verify(itemCardapioRepository).findAllById(request.itensIds());
         verify(pedidoRepository).save(pedido);
@@ -166,7 +162,7 @@ public class CreatePedidoHandlerTests {
         // Arrange
         String errorCode = "COM404";
         String errorMessage = "Comanda inválida";
-        when(comandaService.validarComanda("comanda456"))
+        when(comandaService.validarComanda("comanda456", "mesa123"))
                 .thenThrow(new BusinessException(errorCode, errorMessage, HttpStatus.BAD_REQUEST));
 
         // Act
@@ -179,14 +175,14 @@ public class CreatePedidoHandlerTests {
         assertEquals(errorMessage, response.getMessages().getFirst().getText());
         assertEquals(errorCode, response.getMessages().getFirst().getCode());
 
-        verify(comandaService).validarComanda("comanda456");
+        verify(comandaService).validarComanda("comanda456", "mesa123");
         verifyNoInteractions(pedidoAdapter, itemCardapioRepository, pedidoRepository, redisService, kafkaService);
     }
 
     @Test
     void doExecute_DeveRetornarErroGenericoQuandoOcorrerExcecaoInesperada() throws ExecutionException, InterruptedException {
         // Arrange
-        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
         when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
         when(itemCardapioRepository.findAllById(request.itensIds()))
                 .thenThrow(new RuntimeException("Erro inesperado"));
@@ -203,7 +199,7 @@ public class CreatePedidoHandlerTests {
         assertEquals(MessageResources.get("error.create_item_error_code"),
                 response.getMessages().getFirst().getCode());
 
-        verify(comandaService).validarComanda("comanda456");
+        verify(comandaService).validarComanda("comanda456", "mesa123");
         verify(pedidoAdapter).toPedido(request);
         verify(itemCardapioRepository).findAllById(request.itensIds());
         verifyNoInteractions(pedidoRepository, redisService, kafkaService);
@@ -213,7 +209,7 @@ public class CreatePedidoHandlerTests {
     void doExecute_DeveRetornarErroQuandoItensForemInvalidos() throws ExecutionException, InterruptedException {
         // Arrange
         List<ItemCardapio> itensIncompletos = List.of(itens.get(0)); // Apenas 1 item
-        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
         when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
         when(itemCardapioRepository.findAllById(request.itensIds())).thenReturn(itensIncompletos);
 
@@ -229,7 +225,7 @@ public class CreatePedidoHandlerTests {
         assertEquals(MessageResources.get("error.invalid_items_code"), // ou outra mensagem específica
                 response.getMessages().getFirst().getText());
 
-        verify(comandaService).validarComanda("comanda456");
+        verify(comandaService).validarComanda("comanda456", "mesa123");
         verify(pedidoAdapter).toPedido(request);
         verify(itemCardapioRepository).findAllById(request.itensIds());
         verifyNoInteractions(pedidoRepository, redisService, kafkaService);
@@ -238,7 +234,7 @@ public class CreatePedidoHandlerTests {
     @Test
     void doExecute_DeveRetornarErroGenericoQuandoExcecaoNaoEsperadaOcorrer() throws ExecutionException, InterruptedException {
         // Arrange
-        when(comandaService.validarComanda("comanda456")).thenReturn(comanda);
+        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
         when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
         when(itemCardapioRepository.findAllById(any())).thenReturn(itens);
 
