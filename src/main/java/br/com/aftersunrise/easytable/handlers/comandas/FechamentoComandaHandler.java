@@ -1,10 +1,11 @@
 package br.com.aftersunrise.easytable.handlers.comandas;
 
+import br.com.aftersunrise.easytable.borders.dtos.requests.FechamentoComandaCommand;
 import br.com.aftersunrise.easytable.borders.dtos.responses.FechamentoResponse;
 import br.com.aftersunrise.easytable.borders.handlers.IFechamentoComandaHandler;
 import br.com.aftersunrise.easytable.services.PedidoService;
 import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
-import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
+import br.com.aftersunrise.easytable.shared.handlers.CommandHandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
 import jakarta.validation.Validator;
@@ -16,29 +17,28 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.CompletableFuture;
 
 @Service
-public class FechamentoComandaHandler
-        extends HandlerBase<String, FechamentoResponse>
-implements IFechamentoComandaHandler {
+public class FechamentoComandaHandler extends CommandHandlerBase<FechamentoComandaCommand, FechamentoResponse>
+        implements IFechamentoComandaHandler{
 
-    private static final Logger logger = LoggerFactory.getLogger(FechamentoComandaHandler.class);
     private final PedidoService pedidoService;
+    private static final Logger logger = LoggerFactory.getLogger(FechamentoComandaHandler.class);
 
-    public FechamentoComandaHandler(Validator validator, PedidoService pedidoService) {
-        super(logger,validator);
+
+    public FechamentoComandaHandler(
+            PedidoService pedidoService,
+            Validator validator, MessageResources messageResources) {
+        super(logger, validator);
         this.pedidoService = pedidoService;
     }
 
-
     @Override
     @Transactional
-    protected CompletableFuture<HandlerResponseWithResult<FechamentoResponse>> doExecute(String request) {
+    protected CompletableFuture<HandlerResponseWithResult<FechamentoResponse>> doExecute(FechamentoComandaCommand command) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // 1. Validar código QR
-                validarCodigoQR(request);
+                validarCodigoQR(command.codigoQR());
 
-                // 2. Executar fechamento da comanda
-                FechamentoResponse response = pedidoService.fecharContaPorComanda(request).join();
+                FechamentoResponse response = pedidoService.fecharContaPorComanda(command.codigoQR()).join();
 
                 logger.info("Comanda fechada com sucesso: {}", response.comandaId());
                 return success(response);
@@ -67,7 +67,7 @@ implements IFechamentoComandaHandler {
             badRequest(
                     MessageResources.get("error.fechamento_comanda_code"),
                     MessageResources.get("error.fechamento_comanda_invalid_qr"
-            ));
+                    ));
         }
     }
 }

@@ -1,9 +1,12 @@
 package br.com.aftersunrise.easytable.shared.properties;
 
 
+import org.springframework.stereotype.Component;
+
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
+@Component
 public class MessageResources {
     private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
 
