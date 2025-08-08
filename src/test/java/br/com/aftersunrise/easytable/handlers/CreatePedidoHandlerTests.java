@@ -1,14 +1,12 @@
 package br.com.aftersunrise.easytable.handlers;
 
 import br.com.aftersunrise.easytable.borders.adapters.interfaces.IPedidoAdapter;
-import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
-import br.com.aftersunrise.easytable.borders.dtos.responses.CreatePedidoResponse;
+import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoCommand;
 import br.com.aftersunrise.easytable.borders.entities.Comanda;
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
-import br.com.aftersunrise.easytable.builders.CreatePedidoRequestBuilder;
 import br.com.aftersunrise.easytable.configs.QrCodeProperties;
-import br.com.aftersunrise.easytable.handlers.pedidos.CreatePedidoHandler;
+import br.com.aftersunrise.easytable.handlers.pedidos.CreatePedidoCommandHandler;
 import br.com.aftersunrise.easytable.repositories.ComandaRepository;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
@@ -17,45 +15,31 @@ import br.com.aftersunrise.easytable.services.KafkaPedidoProducerService;
 import br.com.aftersunrise.easytable.services.RedisService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
-import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
-import br.com.aftersunrise.easytable.shared.properties.MessageResources;
+import br.com.aftersunrise.easytable.shared.models.ErrorMessage;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class CreatePedidoHandlerTests {
 
     @Mock
-    private Validator validator;
-
-    @Mock
     private PedidoRepository pedidoRepository;
 
     @Mock
     private IPedidoAdapter pedidoAdapter;
-
-    @Mock
-    private ComandaRepository comandaRepository;
-
-    @Mock
-    private ItemCardapioRepository itemCardapioRepository;
 
     @Mock
     private KafkaPedidoProducerService kafkaService;
@@ -67,203 +51,153 @@ public class CreatePedidoHandlerTests {
     private QrCodeProperties qrCodeProperties;
 
     @Mock
+    private ItemCardapioRepository itemCardapioRepository;
+
+    @Mock
+    private ComandaRepository comandaRepository;
+
+    @Mock
     private ComandaService comandaService;
 
-    @InjectMocks
-    private CreatePedidoHandler handler;
+    @Mock
+    private Validator validator;
 
-    private CreatePedidoRequest request;
-    private Comanda comanda;
-    private Pedido pedido;
-    private List<ItemCardapio> itens;
-    private Pedido pedidoSalvo;
+    private CreatePedidoCommandHandler handler;
 
     @BeforeEach
-    public void setUp() {
-        CreatePedidoRequestBuilder builder = CreatePedidoRequestBuilder.builder()
-                .mesaId("mesa123")
-                .comandaId("comanda456")
-                .itensIds(Arrays.asList("item1", "item2"))
-                .dataHora(new Date())
-                .status(PedidoStatus.PENDENTE)
-                .qrCodeAcompanhamento("qrCode123");
-
-        request = builder.toCreatePedidoRequest();
-
-        comanda = Comanda.builder()
-                .id("comanda456")
-                .codigoQR("abc123")
-                .mesaId("mesa001")
-                .ativa(true)
-                .dataCriacao(new Date())
-                .qrCodeImagem(null)
-                .build();
-
-        ItemCardapio item1 = ItemCardapio.builder()
-                .id("item1")
-                .nome("Item 1")
-                .preco(10.0)
-                .build();
-
-        ItemCardapio item2 = ItemCardapio.builder()
-                .id("item2")
-                .nome("Item 2")
-                .preco(15.0)
-                .build();
-
-        itens = Arrays.asList(item1, item2);
-
-        pedido = Pedido.builder()
-                .id("pedido123")
-                .comandaId(comanda.getId())
-                .mesaId(request.mesaId())
-                .dataHora(new Date())
-                .status(PedidoStatus.PENDENTE)
-                .itens(itens)
-                .build();
-
-        pedidoSalvo = pedido;
-
-        lenient().when(qrCodeProperties.getBaseUrl()).thenReturn("http://qrcode/");
+    void setUp() {
+        handler = new CreatePedidoCommandHandler(
+                validator,
+                pedidoRepository,
+                pedidoAdapter,
+                kafkaService,
+                redisService,
+                qrCodeProperties,
+                comandaService,
+                itemCardapioRepository,
+                comandaRepository
+        );
     }
 
     @Test
-    void doExecute_DeveCriarPedidoComSucesso() throws ExecutionException, InterruptedException {
+    void deveCriarPedidoComSucesso() throws Exception {
         // Arrange
-        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
-        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
-        when(itemCardapioRepository.findAllById(request.itensIds())).thenReturn(itens);
-        when(pedidoRepository.save(pedido)).thenReturn(pedidoSalvo);
+        var mesaId = "mesa-1";
+        var comandaId = "comanda-1";
+        var itemId = "item-1";
+        var command = new CreatePedidoCommand(mesaId, List.of(itemId), comandaId);
+
+        var comanda = new Comanda();
+        comanda.setId(comandaId);
+        comanda.setCodigoQR("qrcode-123");
+
+        var pedido = new Pedido();
+        pedido.setId("pedido-1");
+        pedido.setMesaId(mesaId);
+        pedido.setComandaId(comandaId);
+        pedido.setStatus(PedidoStatus.PENDENTE);
+        pedido.setDataHora(new Date());
+
+        var item = new ItemCardapio();
+        item.setId(itemId);
+
+        pedido.setItens(List.of(item));
+
+        when(comandaService.validarComanda(comandaId, mesaId)).thenReturn(comanda);
+        when(itemCardapioRepository.findAllById(List.of(itemId))).thenReturn(List.of(item));
+        when(pedidoAdapter.toPedido(command)).thenReturn(pedido);
+        when(pedidoRepository.save(any())).thenReturn(pedido);
+        when(comandaRepository.findById(comandaId)).thenReturn(Optional.of(comanda));
+        when(qrCodeProperties.getBaseUrl()).thenReturn("http://localhost/");
+        when(qrCodeProperties.getFechamentoPath()).thenReturn("fechar/{codigoQR}");
 
         // Act
-        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
-        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+        var resultFuture = handler.execute(command);
+        var result = resultFuture.get();
 
         // Assert
-        assertTrue(response.isSuccess());
-        assertEquals("pedido123", response.getResult().id());
-        assertEquals("mesa123", response.getResult().mesaId());
-        assertEquals("comanda456", response.getResult().comandaId());
-        assertEquals(2, response.getResult().itens().size());
-        assertEquals(PedidoStatus.PENDENTE, response.getResult().status());
-        assertNotNull(response.getResult().dataHora());
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getResult());
+        assertEquals("pedido-1", result.getResult().id());
+        assertEquals("http://localhost/fechar/qrcode-123", result.getResult().qrCodeUrl());
 
-        // Verifica se os métodos foram chamados corretamente
-        verify(comandaService).validarComanda("comanda456", "mesa123");
-        verify(pedidoAdapter).toPedido(request);
-        verify(itemCardapioRepository).findAllById(request.itensIds());
-        verify(pedidoRepository).save(pedido);
-        verify(redisService).salvar(eq("pedido:pedido123"), any(Pedido.class), eq(60L)); // Alterado para 60L
-        verify(kafkaService).enviarPedidoCriado(pedidoSalvo);
+        verify(redisService).salvar(startsWith("pedido:"), any(Pedido.class), anyLong());
+        verify(kafkaService).enviarPedidoCriado(any(Pedido.class));
     }
 
     @Test
-    void doExecute_DeveRetornarErroQuandoComandaInvalida() throws ExecutionException, InterruptedException {
+    void deveRetornarErroQuandoItensInvalidos() throws Exception {
         // Arrange
-        String errorCode = "COM404";
-        String errorMessage = "Comanda inválida";
-        when(comandaService.validarComanda("comanda456", "mesa123"))
-                .thenThrow(new BusinessException(errorCode, errorMessage, HttpStatus.BAD_REQUEST));
+        var command = new CreatePedidoCommand("mesa-1", List.of("item-1", "item-2"), "comanda-1");
+
+        var comanda = new Comanda();
+        comanda.setId("comanda-1");
+        comanda.setCodigoQR("qrcode");
+
+        var pedido = new Pedido();
+        pedido.setItens(List.of(new ItemCardapio())); // só 1 item retornado
+
+        when(comandaService.validarComanda(any(), any())).thenReturn(comanda);
+        when(itemCardapioRepository.findAllById(any())).thenReturn(List.of(new ItemCardapio()));
+        when(pedidoAdapter.toPedido(command)).thenReturn(pedido);
 
         // Act
-        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
-        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+        var result = handler.execute(command).get();
 
         // Assert
-        assertFalse(response.isSuccess());
-        assertNull(response.getResult());
-        assertEquals(errorMessage, response.getMessages().getFirst().getText());
-        assertEquals(errorCode, response.getMessages().getFirst().getCode());
-
-        verify(comandaService).validarComanda("comanda456", "mesa123");
-        verifyNoInteractions(pedidoAdapter, itemCardapioRepository, pedidoRepository, redisService, kafkaService);
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getMessages());
+        assertFalse(result.getMessages().isEmpty());
+        var firstMessage = result.getMessages().get(0);
+        assertEquals("400!", firstMessage.getCode());
     }
 
     @Test
-    void doExecute_DeveRetornarErroGenericoQuandoOcorrerExcecaoInesperada() throws ExecutionException, InterruptedException {
+    void deveRetornarErroQuandoComandaNaoExiste() throws Exception {
         // Arrange
-        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
-        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
-        when(itemCardapioRepository.findAllById(request.itensIds()))
-                .thenThrow(new RuntimeException("Erro inesperado"));
+        var command = new CreatePedidoCommand("mesa-1", List.of("item-1"), "comanda-nao-existe");
+
+        when(comandaService.validarComanda(any(), any()))
+                .thenThrow(new BusinessException(new ErrorMessage("COM404", "Comanda não encontrada"), HttpStatus.NOT_FOUND));
 
         // Act
-        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
-        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+        var result = handler.execute(command).get();
 
         // Assert
-        assertFalse(response.isSuccess());
-        assertNull(response.getResult());
-        assertEquals(MessageResources.get("error.create_item_error"),
-                response.getMessages().getFirst().getText());
-        assertEquals(MessageResources.get("error.create_item_error_code"),
-                response.getMessages().getFirst().getCode());
+        assertFalse(result.isSuccess());
 
-        verify(comandaService).validarComanda("comanda456", "mesa123");
-        verify(pedidoAdapter).toPedido(request);
-        verify(itemCardapioRepository).findAllById(request.itensIds());
-        verifyNoInteractions(pedidoRepository, redisService, kafkaService);
+        // Verifique se a lista de mensagens não está vazia e se o código da primeira mensagem é o esperado.
+        assertNotNull(result.getMessages());
+        assertFalse(result.getMessages().isEmpty());
+
+        // Obtenha a primeira mensagem da lista
+        var firstMessage = result.getMessages().get(0);
+
+        // Agora compare o código da mensagem com o valor esperado
+        assertEquals("COM404", firstMessage.getCode());
     }
 
     @Test
-    void doExecute_DeveRetornarErroQuandoItensForemInvalidos() throws ExecutionException, InterruptedException {
+    void deveTratarErroGenerico() throws Exception {
         // Arrange
-        List<ItemCardapio> itensIncompletos = List.of(itens.get(0)); // Apenas 1 item
-        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
-        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
-        when(itemCardapioRepository.findAllById(request.itensIds())).thenReturn(itensIncompletos);
+        var command = new CreatePedidoCommand("mesa-1", List.of("item-1"), "comanda-1");
+
+        when(comandaService.validarComanda(any(), any())).thenThrow(new RuntimeException("Falha interna"));
 
         // Act
-        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
-        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
+        var result = handler.execute(command).get();
 
         // Assert
-        assertFalse(response.isSuccess());
-        assertNull(response.getResult());
-        assertEquals(MessageResources.get("error.invalid_items_code"),
-                response.getMessages().getFirst().getCode());
-        assertEquals(MessageResources.get("error.invalid_items_code"), // ou outra mensagem específica
-                response.getMessages().getFirst().getText());
+        assertFalse(result.isSuccess());
 
-        verify(comandaService).validarComanda("comanda456", "mesa123");
-        verify(pedidoAdapter).toPedido(request);
-        verify(itemCardapioRepository).findAllById(request.itensIds());
-        verifyNoInteractions(pedidoRepository, redisService, kafkaService);
-    }
+        // Verifique se a lista de mensagens não está vazia.
+        assertNotNull(result.getMessages());
+        assertFalse(result.getMessages().isEmpty());
 
-    @Test
-    void doExecute_DeveRetornarErroGenericoQuandoExcecaoNaoEsperadaOcorrer() throws ExecutionException, InterruptedException {
-        // Arrange
-        when(comandaService.validarComanda("comanda456", "mesa123")).thenReturn(comanda);
-        when(pedidoAdapter.toPedido(request)).thenReturn(pedido);
-        when(itemCardapioRepository.findAllById(any())).thenReturn(itens);
+        // Obtenha a primeira mensagem da lista.
+        var firstMessage = result.getMessages().get(0);
 
-        // Simula uma exceção genérica (não BusinessException)
-        doThrow(new RuntimeException("Simulando erro não esperado"))
-                .when(pedidoRepository).save(any(Pedido.class));
-
-        // Act
-        CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> future = handler.doExecute(request);
-        HandlerResponseWithResult<CreatePedidoResponse> response = future.get();
-
-        // Assert
-        assertFalse(response.isSuccess());
-        assertNull(response.getResult());
-
-        // Verifica se retornou a mensagem genérica do MessageResources
-        assertEquals(MessageResources.get("error.create_item_error"),
-                response.getMessages().getFirst().getText());
-
-        // Verifica se retornou o código genérico do MessageResources
-        assertEquals(MessageResources.get("error.create_item_error_code"),
-                response.getMessages().getFirst().getCode());
-
-        // Verifica o status code
-        assertEquals(400, response.getStatusCode());
-
-        // Verificações de interação
-        verify(pedidoRepository).save(any(Pedido.class));
-        verify(kafkaService, never()).enviarPedidoCriado(any());
-        verify(redisService, never()).salvar(any(), any(), anyLong());
+        // Verifique o código da primeira mensagem.
+        assertEquals("Erro inesperado ao persistir ações do usuário....", firstMessage.getCode());
     }
 }

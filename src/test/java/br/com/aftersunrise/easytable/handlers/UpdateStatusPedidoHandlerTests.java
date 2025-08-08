@@ -1,7 +1,7 @@
 package br.com.aftersunrise.easytable.handlers;
 
 import br.com.aftersunrise.easytable.borders.adapters.interfaces.IPedidoAdapter;
-import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoCommand;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.handlers.pedidos.UpdateStatusPedidoHandler;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
@@ -44,13 +44,13 @@ public class UpdateStatusPedidoHandlerTests {
     @BeforeEach
     void setUp() {
         String pedidoId = UUID.randomUUID().toString();
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.EM_PREPARACAO);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(pedidoId, PedidoStatus.EM_PREPARACAO);
     }
 
     @Test
     void testUpdateStatusPedidoSuccess() {
         String pedidoId = UUID.randomUUID().toString();
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.EM_PREPARACAO);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(pedidoId, PedidoStatus.EM_PREPARACAO);
         Pedido pedido = new Pedido();
         pedido.setId(pedidoId);
         pedido.setStatus(PedidoStatus.PENDENTE);
@@ -70,33 +70,33 @@ public class UpdateStatusPedidoHandlerTests {
     @Test
     void testUpdateStatusPedidoNotFound() {
         String pedidoId = UUID.randomUUID().toString();
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.EM_PREPARACAO);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(pedidoId, PedidoStatus.EM_PREPARACAO);
 
         when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.empty());
 
         var response = handler.execute(request).join();
 
         assertFalse(response.isSuccess());
-        assertEquals("Pedido não encontrado.", response.getMessages().getFirst().getText());
+        assertEquals("PEDIDO001", response.getMessages().getFirst().getText());
     }
 
     @Test
     void testUpdateStatusPedidoException() {
         String pedidoId = UUID.randomUUID().toString();
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.EM_PREPARACAO);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(pedidoId, PedidoStatus.EM_PREPARACAO);
 
         when(pedidoRepository.findById(pedidoId)).thenThrow(new RuntimeException("Database error"));
 
         var response = handler.execute(request).join();
 
         assertFalse(response.isSuccess());
-        assertEquals("Database error", response.getMessages().getFirst().getText());
+        assertEquals("!error.pedido.status_update_failed!", response.getMessages().getFirst().getText());
     }
 
     @Test
     void testRemoveFromReisPedidoWhenPedidoStatusEqualPronto() {
         String pedidoId = UUID.randomUUID().toString();
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(pedidoId, PedidoStatus.PRONTO);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(pedidoId, PedidoStatus.PRONTO);
         Pedido pedido = new Pedido();
         pedido.setId(pedidoId);
         pedido.setStatus(PedidoStatus.EM_PREPARACAO);

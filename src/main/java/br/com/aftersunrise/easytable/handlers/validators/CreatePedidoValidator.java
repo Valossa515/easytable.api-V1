@@ -1,12 +1,12 @@
 package br.com.aftersunrise.easytable.handlers.validators;
 
-import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoCommand;
 import br.com.aftersunrise.easytable.handlers.validators.annotations.ValidCreatePedido;
 import jakarta.validation.ConstraintValidator;
 
-public class CreatePedidoValidator implements ConstraintValidator<ValidCreatePedido, CreatePedidoRequest> {
+public class CreatePedidoValidator implements ConstraintValidator<ValidCreatePedido, CreatePedidoCommand> {
     @Override
-    public boolean isValid(CreatePedidoRequest request, jakarta.validation.ConstraintValidatorContext context) {
+    public boolean isValid(CreatePedidoCommand request, jakarta.validation.ConstraintValidatorContext context) {
         if (request == null) return false;
 
         boolean isValid = true;

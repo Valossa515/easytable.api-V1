@@ -1,10 +1,11 @@
 package br.com.aftersunrise.easytable.handlers.comandas;
 
+import br.com.aftersunrise.easytable.borders.dtos.requests.ReabrirComandaCommand;
 import br.com.aftersunrise.easytable.borders.dtos.responses.ComandaResponse;
 import br.com.aftersunrise.easytable.borders.entities.Comanda;
 import br.com.aftersunrise.easytable.borders.handlers.IReabrirComandaHandler;
 import br.com.aftersunrise.easytable.services.PedidoService;
-import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
+import br.com.aftersunrise.easytable.shared.handlers.CommandHandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
 import jakarta.validation.Validator;
@@ -15,23 +16,28 @@ import org.springframework.stereotype.Service;
 import java.util.concurrent.CompletableFuture;
 
 @Service
-public class ReabrirComandaHandler extends HandlerBase<String, ComandaResponse>
-        implements IReabrirComandaHandler {
+public class ReabrirComandaHandler extends CommandHandlerBase<ReabrirComandaCommand, ComandaResponse>
+        implements IReabrirComandaHandler{
 
     private static final Logger logger = LoggerFactory.getLogger(ReabrirComandaHandler.class);
     private final PedidoService pedidoService;
 
-    public ReabrirComandaHandler(Validator validator, PedidoService pedidoService) {
+    public ReabrirComandaHandler(
+            Validator validator,
+            PedidoService pedidoService
+    ) {
         super(logger, validator);
         this.pedidoService = pedidoService;
     }
+
     @Override
-    protected CompletableFuture<HandlerResponseWithResult<ComandaResponse>> doExecute(String request) {
+    protected CompletableFuture<HandlerResponseWithResult<ComandaResponse>> doExecute(ReabrirComandaCommand command) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                validarCodigoQR(request);
+                validarCodigoQR(command.codigoQR());
 
-                Comanda comanda = pedidoService.reabrirComanda(request).join();
+                Comanda comanda = pedidoService.reabrirComanda(command.codigoQR()).join();
+
                 logger.info("Comanda reaberta com sucesso: {}", comanda.getId());
 
                 return success(new ComandaResponse(comanda.getId(), comanda.getMesaId(), comanda.isAtiva()));

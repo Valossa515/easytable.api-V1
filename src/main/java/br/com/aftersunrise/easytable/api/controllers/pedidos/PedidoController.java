@@ -1,7 +1,7 @@
 package br.com.aftersunrise.easytable.api.controllers.pedidos;
 
-import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
-import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoCommand;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoCommand;
 import br.com.aftersunrise.easytable.borders.dtos.responses.CreatePedidoResponse;
 import br.com.aftersunrise.easytable.borders.dtos.responses.UpdateStatusPedidoResponse;
 import br.com.aftersunrise.easytable.borders.handlers.ICreatePedidoHandler;
@@ -47,7 +47,7 @@ public class PedidoController {
     )
     @PostMapping("/create")
     public CompletableFuture<ResponseEntity<CreatePedidoResponse>> createPedido(
-            @RequestBody CreatePedidoRequest request) {
+            @RequestBody CreatePedidoCommand request) {
         return createPedidoHandler.execute(request)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
@@ -71,7 +71,7 @@ public class PedidoController {
     public CompletableFuture<ResponseEntity<UpdateStatusPedidoResponse>> updatePedidoStatus(
             @PathVariable String id,
             @RequestParam PedidoStatus status) {
-        UpdateStatusPedidoRequest request = new UpdateStatusPedidoRequest(id, status);
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(id, status);
         return updateStatusPedidoHandler.execute(request)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
