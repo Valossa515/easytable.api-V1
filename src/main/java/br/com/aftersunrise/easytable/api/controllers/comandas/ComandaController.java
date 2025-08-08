@@ -1,5 +1,7 @@
 package br.com.aftersunrise.easytable.api.controllers.comandas;
 
+import br.com.aftersunrise.easytable.borders.dtos.requests.FechamentoComandaCommand;
+import br.com.aftersunrise.easytable.borders.dtos.requests.ReabrirComandaCommand;
 import br.com.aftersunrise.easytable.borders.dtos.responses.ComandaResponse;
 import br.com.aftersunrise.easytable.borders.dtos.responses.FechamentoResponse;
 import br.com.aftersunrise.easytable.borders.handlers.IFechamentoComandaHandler;
@@ -24,14 +26,16 @@ public class ComandaController {
     @PostMapping("/{codigoQR}/fechar")
     public CompletableFuture<ResponseEntity<FechamentoResponse>> fecharComanda(
             @PathVariable String codigoQR) {
-        return fechamentoHandler.execute(codigoQR)
+        var command = new FechamentoComandaCommand(codigoQR);
+        return fechamentoHandler.execute(command)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
 
     @PatchMapping("/reabrir/{codigoQR}")
     public CompletableFuture<ResponseEntity<ComandaResponse>> reabrirComanda(
             @PathVariable String codigoQR) {
-        return reabrirHandler.execute(codigoQR)
+        var command = new ReabrirComandaCommand(codigoQR);
+        return reabrirHandler.execute(command)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, false));
     }
 }

@@ -1,12 +1,12 @@
 package br.com.aftersunrise.easytable.handlers.validators;
 
-import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoCommand;
 import br.com.aftersunrise.easytable.handlers.validators.annotations.ValidUpdatePedido;
 import jakarta.validation.ConstraintValidator;
 
-public class UpdatePedidoValidator implements ConstraintValidator<ValidUpdatePedido, UpdateStatusPedidoRequest> {
+public class UpdatePedidoValidator implements ConstraintValidator<ValidUpdatePedido, UpdateStatusPedidoCommand> {
     @Override
-    public boolean isValid(UpdateStatusPedidoRequest request, jakarta.validation.ConstraintValidatorContext context) {
+    public boolean isValid(UpdateStatusPedidoCommand request, jakarta.validation.ConstraintValidatorContext context) {
         if (request == null) return false;
 
         boolean isValid = true;

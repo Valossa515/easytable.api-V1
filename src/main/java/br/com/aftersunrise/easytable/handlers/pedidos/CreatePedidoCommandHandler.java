@@ -1,7 +1,7 @@
 package br.com.aftersunrise.easytable.handlers.pedidos;
 
 import br.com.aftersunrise.easytable.borders.adapters.interfaces.IPedidoAdapter;
-import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoCommand;
 import br.com.aftersunrise.easytable.borders.dtos.responses.CreatePedidoResponse;
 import br.com.aftersunrise.easytable.borders.entities.Comanda;
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
@@ -16,7 +16,7 @@ import br.com.aftersunrise.easytable.services.KafkaPedidoProducerService;
 import br.com.aftersunrise.easytable.services.RedisService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
-import br.com.aftersunrise.easytable.shared.handlers.HandlerBase;
+import br.com.aftersunrise.easytable.shared.handlers.CommandHandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
 import br.com.aftersunrise.easytable.shared.models.ErrorMessage;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Service
-public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, CreatePedidoResponse>
+public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoCommand, CreatePedidoResponse>
         implements ICreatePedidoHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(CreatePedidoHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(CreatePedidoCommandHandler.class);
     private final PedidoRepository pedidoRepository;
     private final IPedidoAdapter pedidoAdapter;
     private final KafkaPedidoProducerService kafkaService;
@@ -45,7 +45,8 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
     private final ItemCardapioRepository itemCardapioRepository;
     private final ComandaRepository comandaRepository;
 
-    public CreatePedidoHandler(
+
+    public CreatePedidoCommandHandler(
             Validator validator,
             PedidoRepository pedidoRepository,
             IPedidoAdapter pedidoAdapter,
@@ -54,8 +55,8 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
             QrCodeProperties qrCodeProperties,
             ComandaService comandaService,
             ItemCardapioRepository itemCardapioRepository,
-            ComandaRepository comandaRepository
-    ) {
+            ComandaRepository comandaRepository) {
+
         super(logger, validator);
         this.pedidoRepository = pedidoRepository;
         this.pedidoAdapter = pedidoAdapter;
@@ -67,30 +68,27 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
         this.comandaRepository = comandaRepository;
     }
 
+
     @Override
     @Transactional
-    public CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> doExecute(CreatePedidoRequest request) {
+    protected CompletableFuture<HandlerResponseWithResult<CreatePedidoResponse>> doExecute(CreatePedidoCommand command) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Comanda comanda = validarComanda(request.comandaId(), request.mesaId());
-                Pedido pedido = montarPedido(request, comanda);
-                validarItens(pedido, request.itensIds());
+                Comanda comanda = validarComanda(command.comandaId(), command.mesaId());
+                Pedido pedido = montarPedido(command, comanda);
+                validarItens(pedido, command.itensIds());
                 Pedido pedidoSalvo = salvarPedido(pedido);
                 posSalvar(pedidoSalvo);
-                CreatePedidoResponse response = criarResponse(pedidoSalvo);
-                logger.info("Pedido feito com sucesso: {}", pedidoSalvo);
-                return created(response);
+                CreatePedidoResponse resultDto = criarResultado(pedidoSalvo);
+                return success(resultDto);
             } catch (BusinessException ex) {
-                logger.error(ex.getMessage());
                 return badRequest(ex.getErrorMessage().getCode(), ex.getMessage());
             } catch (IllegalArgumentException ex) {
-                logger.error(ex.getMessage());
                 return badRequest(
                         MessageResources.get("error.invalid_items_code"),
                         ex.getMessage()
                 );
             } catch (Exception ex) {
-                logger.error("Erro ao criar o pedido", ex);
                 return badRequest(
                         MessageResources.get("error.create_item_error_code"),
                         MessageResources.get("error.create_item_error")
@@ -99,36 +97,36 @@ public class CreatePedidoHandler extends HandlerBase<CreatePedidoRequest, Create
         });
     }
 
-    public Comanda validarComanda(String comandaId, String mesaId) {
+    private Comanda validarComanda(String comandaId, String mesaId) {
         return comandaService.validarComanda(comandaId, mesaId);
     }
 
-    public void posSalvar(Pedido pedidoSalvo) {
+    private void posSalvar(Pedido pedidoSalvo) {
         redisService.salvar("pedido:" + pedidoSalvo.getId(), pedidoSalvo, 60);
         kafkaService.enviarPedidoCriado(pedidoSalvo);
     }
 
-    public Pedido montarPedido(CreatePedidoRequest request, Comanda comanda) {
-        Pedido pedido = pedidoAdapter.toPedido(request);
+    private Pedido montarPedido(CreatePedidoCommand command, Comanda comanda) {
+        Pedido pedido = pedidoAdapter.toPedido(command);
         pedido.setComandaId(comanda.getId());
         pedido.setDataHora(new Date());
         pedido.setStatus(PedidoStatus.PENDENTE);
-        List<ItemCardapio> itensCompletos = itemCardapioRepository.findAllById(request.itensIds());
+        List<ItemCardapio> itensCompletos = itemCardapioRepository.findAllById(command.itensIds());
         pedido.setItens(itensCompletos);
         return pedido;
     }
 
-    public void validarItens(Pedido pedido, List<String> itensIds) {
+    private void validarItens(Pedido pedido, List<String> itensIds) {
         if (pedido.getItens().size() != itensIds.size()) {
             throw new IllegalArgumentException(MessageResources.get("error.invalid_items_code"));
         }
     }
 
-    public Pedido salvarPedido(Pedido pedido) {
+    private Pedido salvarPedido(Pedido pedido) {
         return pedidoRepository.save(pedido);
     }
 
-    public CreatePedidoResponse criarResponse(Pedido pedidoSalvo) {
+    private CreatePedidoResponse criarResultado(Pedido pedidoSalvo) {
         Comanda comanda = comandaRepository.findById(pedidoSalvo.getComandaId())
                 .orElseThrow(() -> new BusinessException(
                         new ErrorMessage("COM404", "Comanda não encontrada"),

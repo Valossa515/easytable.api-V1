@@ -1,8 +1,8 @@
 package br.com.aftersunrise.easytable.api.controllers.cozinha;
 
-import br.com.aftersunrise.easytable.borders.dtos.requests.ListaPedidosRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.ListaPedidosQuery;
 import br.com.aftersunrise.easytable.borders.dtos.responses.ListaPedidosResponse;
-import br.com.aftersunrise.easytable.borders.handlers.IListPedidosHandler;
+import br.com.aftersunrise.easytable.borders.handlers.IListPedidosQueryHandler;
 import br.com.aftersunrise.easytable.shared.models.Message;
 import br.com.aftersunrise.easytable.shared.models.interfaces.IResponseEntityConverter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @Tag(name = "Cozinha", description = "Operações relacionadas à cozinha.")
 public class CozinhaController {
 
-    private final IListPedidosHandler listPedidosHandler;
+    private final IListPedidosQueryHandler listPedidosHandler;
     private final IResponseEntityConverter responseEntityConverter;
 
     @Operation(
@@ -45,7 +45,7 @@ public class CozinhaController {
     )
     @GetMapping
     public CompletableFuture<ResponseEntity<ListaPedidosResponse>> listarPedidos() {
-        var request = new ListaPedidosRequest();
+        var request = new ListaPedidosQuery();
         return listPedidosHandler.execute(request)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }

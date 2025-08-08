@@ -1,8 +1,8 @@
 package br.com.aftersunrise.easytable.borders.adapters;
 
 import br.com.aftersunrise.easytable.borders.adapters.interfaces.IPedidoAdapter;
-import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoRequest;
-import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoRequest;
+import br.com.aftersunrise.easytable.borders.dtos.requests.CreatePedidoCommand;
+import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoCommand;
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
@@ -22,7 +22,7 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository) {
     }
 
     @Override
-    public Pedido toPedido(CreatePedidoRequest request) {
+    public Pedido toPedido(CreatePedidoCommand request) {
         List<ItemCardapio> itens = itemCardapioRepository.findAllById(request.itensIds());
         if(itens.size() != request.itensIds().size()) {
             throw new IllegalArgumentException("Alguns itens não foram encontrados no cardápio");
@@ -38,7 +38,7 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository) {
     }
 
     @Override
-    public void updatePedido(Pedido pedido, UpdateStatusPedidoRequest request) {
+    public void updatePedido(Pedido pedido, UpdateStatusPedidoCommand request) {
         if (request.status() != null) {
             pedido.setStatus(request.status());
         }
