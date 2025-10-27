@@ -61,10 +61,10 @@ public abstract class CommandHandlerBase<TCommand extends ICommand<TResponse>, T
 
     protected abstract CompletableFuture<HandlerResponseWithResult<TResponse>> doExecute(TCommand request);
 
-    protected HandlerResponseWithResult<TResponse> notFound(String message, String s) {
+    protected HandlerResponseWithResult<TResponse> notFound(String code, String message) {
         HandlerResponseWithResult<TResponse> response = new HandlerResponseWithResult<>();
         response.setStatusCode(404);
-        response.setMessages(List.of(new Message(MessageResources.get("error.not_found_error_code"), message)));
+        response.setMessages(List.of(new Message(code, message)));
         return response;
     }
 
