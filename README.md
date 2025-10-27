@@ -38,7 +38,7 @@ Reabre uma comanda previamente fechada.
 Cria um novo pedido vinculado a uma comanda.
 
 - **POST** `/pedidos/v1/create`
-- **Body (JSON):** `CreatePedidoRequest`
+- **Body (JSON):** `CreatePedidoCommand`
 - **Resposta:** `CreatePedidoResponse` com os detalhes do pedido criado
 
 #### 🔄 Atualizar Status do Pedido

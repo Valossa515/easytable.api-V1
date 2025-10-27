@@ -43,6 +43,12 @@ public class FechamentoComandaHandler extends CommandHandlerBase<FechamentoComan
                 logger.info("Comanda fechada com sucesso: {}", response.comandaId());
                 return success(response);
 
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Validação falhou ao fechar comanda: {}", ex.getMessage());
+                return badRequest(
+                        MessageResources.get("error.fechamento_comanda_code"),
+                        ex.getMessage()
+                );
             } catch (BusinessException ex) {
                 logger.error("Erro de negócio ao fechar comanda: {}", ex.getMessage());
                 return badRequest(ex.getErrorMessage().getCode(), ex.getMessage());
@@ -64,10 +70,9 @@ public class FechamentoComandaHandler extends CommandHandlerBase<FechamentoComan
 
     private void validarCodigoQR(String codigoQR) {
         if (codigoQR == null || codigoQR.trim().isEmpty()) {
-            badRequest(
-                    MessageResources.get("error.fechamento_comanda_code"),
-                    MessageResources.get("error.fechamento_comanda_invalid_qr"
-                    ));
+            throw new IllegalArgumentException(
+                    MessageResources.get("error.fechamento_comanda_invalid_qr")
+            );
         }
     }
 }
