@@ -6,7 +6,11 @@ import br.com.aftersunrise.easytable.borders.dtos.requests.UpdateStatusPedidoCom
 import br.com.aftersunrise.easytable.borders.entities.ItemCardapio;
 import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
+import br.com.aftersunrise.easytable.services.PedidoStateMachineService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
+import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
+import br.com.aftersunrise.easytable.shared.properties.MessageResources;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
@@ -16,9 +20,12 @@ import java.util.List;
 public class PedidoAdapterImpl implements IPedidoAdapter {
 
     private final ItemCardapioRepository itemCardapioRepository;
+    private final PedidoStateMachineService pedidoStateMachineService;
 
-public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository) {
+public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository,
+                         PedidoStateMachineService pedidoStateMachineService) {
         this.itemCardapioRepository = itemCardapioRepository;
+        this.pedidoStateMachineService = pedidoStateMachineService;
     }
 
     @Override
@@ -41,6 +48,21 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository) {
     public void updatePedido(Pedido pedido, UpdateStatusPedidoCommand request) {
         if (request.status() != null) {
             pedido.setStatus(request.status());
+            return;
+        }
+
+        if (request.evento() != null) {
+            PedidoStatus proximoStatus = pedidoStateMachineService
+                    .validarTransicao(pedido.getStatus(), request.evento());
+
+            if (proximoStatus == null) {
+                throw new BusinessException(
+                        "PEDIDO003",
+                        MessageResources.get("error.pedido.invalid_transition"),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            pedido.setStatus(proximoStatus);
         }
     }
 }
