@@ -3,7 +3,7 @@ package br.com.aftersunrise.easytable.configs;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatusEvent;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.statemachine.config.EnableStateMachine;
+import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.EnumStateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
@@ -11,7 +11,7 @@ import org.springframework.statemachine.config.builders.StateMachineTransitionCo
 import java.util.EnumSet;
 
 @Configuration
-@EnableStateMachine
+@EnableStateMachineFactory
 public class StateMachineConfig extends EnumStateMachineConfigurerAdapter<PedidoStatus, PedidoStatusEvent> {
 
     @Override
