@@ -8,9 +8,7 @@ import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
 import br.com.aftersunrise.easytable.services.PedidoStateMachineService;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
-import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
 import br.com.aftersunrise.easytable.shared.properties.MessageResources;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
@@ -56,10 +54,8 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository,
                     .validarTransicao(pedido.getStatus(), request.evento());
 
             if (proximoStatus == null) {
-                throw new BusinessException(
-                        "PEDIDO003",
-                        MessageResources.get("error.pedido.invalid_transition"),
-                        HttpStatus.BAD_REQUEST);
+                throw new IllegalArgumentException(
+                        MessageResources.get("error.pedido.invalid_transition"));
             }
 
             pedido.setStatus(proximoStatus);
