@@ -16,6 +16,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(ex.getErrorMessage(), ex.getHttpStatus());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorMessage> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorMessage error = new ErrorMessage(
+                "ERR-400",
+                ex.getMessage()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorMessage> handleGenericException(Exception ex) {
         ErrorMessage error = new ErrorMessage(

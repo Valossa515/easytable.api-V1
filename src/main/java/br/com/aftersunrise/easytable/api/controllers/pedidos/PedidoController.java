@@ -7,6 +7,7 @@ import br.com.aftersunrise.easytable.borders.dtos.responses.UpdateStatusPedidoRe
 import br.com.aftersunrise.easytable.borders.handlers.ICreatePedidoHandler;
 import br.com.aftersunrise.easytable.borders.handlers.IUpdateStatusPedidoHandler;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
+import br.com.aftersunrise.easytable.shared.enums.PedidoStatusEvent;
 import br.com.aftersunrise.easytable.shared.models.Message;
 import br.com.aftersunrise.easytable.shared.models.interfaces.IResponseEntityConverter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,8 +71,9 @@ public class PedidoController {
     @PatchMapping("/{id}/status")
     public CompletableFuture<ResponseEntity<UpdateStatusPedidoResponse>> updatePedidoStatus(
             @PathVariable String id,
-            @RequestParam PedidoStatus status) {
-        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(id, status);
+            @RequestParam(required = false) PedidoStatus status,
+            @RequestParam(required = false) PedidoStatusEvent evento) {
+        UpdateStatusPedidoCommand request = new UpdateStatusPedidoCommand(id, status, evento);
         return updateStatusPedidoHandler.execute(request)
                 .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
