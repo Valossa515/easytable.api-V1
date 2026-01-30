@@ -75,6 +75,13 @@ public abstract class CommandHandlerBase<TCommand extends ICommand<TResponse>, T
         return response;
     }
 
+    protected HandlerResponseWithResult<TResponse> created(TResponse result) {
+        HandlerResponseWithResult<TResponse> response = new HandlerResponseWithResult<>();
+        response.setStatusCode(201);
+        response.setResult(result);
+        return response;
+    }
+
     protected HandlerResponseWithResult<TResponse> badRequest(String code, String message) {
         HandlerResponseWithResult<TResponse> response = new HandlerResponseWithResult<>();
         response.setStatusCode(400);

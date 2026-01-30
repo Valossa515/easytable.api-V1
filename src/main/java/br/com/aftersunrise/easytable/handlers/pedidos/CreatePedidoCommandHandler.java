@@ -79,11 +79,10 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
             try {
                 Comanda comanda = validarComanda(command.comandaId(), command.mesaId());
                 Pedido pedido = montarPedido(command, comanda);
-                validarItens(pedido, command.itensIds());
                 Pedido pedidoSalvo = salvarPedido(pedido);
                 posSalvar(pedidoSalvo);
                 CreatePedidoResponse resultDto = criarResultado(pedidoSalvo);
-                return success(resultDto);
+                return created(resultDto);
             } catch (BusinessException ex) {
                 return badRequest(ex.getErrorMessage().getCode(), ex.getMessage());
             } catch (IllegalArgumentException ex) {
@@ -114,16 +113,20 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
         pedido.setComandaId(comanda.getId());
         pedido.setDataHora(new Date());
         pedido.setStatus(pedidoStateMachineService.getEstadoInicial());
-        List<ItemCardapio> itensCompletos = itemCardapioRepository.findAllById(command.itensIds());
+        List<String> requestedIds = command.itensIds();
+        List<ItemCardapio> allItems = itemCardapioRepository.findAllById(requestedIds);
+        
+        List<ItemCardapio> itensCompletos = requestedIds.stream()
+                .map(id -> allItems.stream()
+                        .filter(item -> item.getId().equals(id))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(MessageResources.get("error.invalid_items_code"))))
+                .toList();
+        
         pedido.setItens(itensCompletos);
         return pedido;
     }
 
-    private void validarItens(Pedido pedido, List<String> itensIds) {
-        if (pedido.getItens().size() != itensIds.size()) {
-            throw new IllegalArgumentException(MessageResources.get("error.invalid_items_code"));
-        }
-    }
 
     private Pedido salvarPedido(Pedido pedido) {
         return pedidoRepository.save(pedido);

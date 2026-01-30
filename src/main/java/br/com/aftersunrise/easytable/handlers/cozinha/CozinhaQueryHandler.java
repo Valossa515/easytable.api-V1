@@ -36,7 +36,7 @@ public class CozinhaQueryHandler extends QueryHandlerBase<ListaPedidosQuery, Lis
         try {
             var pedidos = pedidoRepository.findAll().stream()
                     .filter(p -> p.getStatus() != PedidoStatus.PRONTO && p.getStatus() != PedidoStatus.ENTREGUE
-                            && p.getStatus() != PedidoStatus.PAGO)
+                            && p.getStatus() != PedidoStatus.PAGO && p.getStatus() != PedidoStatus.CANCELADO)
                     .toList();
 
             var dtos = pedidos.stream()

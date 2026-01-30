@@ -28,15 +28,9 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository,
 
     @Override
     public Pedido toPedido(CreatePedidoCommand request) {
-        List<ItemCardapio> itens = itemCardapioRepository.findAllById(request.itensIds());
-        if(itens.size() != request.itensIds().size()) {
-            throw new IllegalArgumentException("Alguns itens não foram encontrados no cardápio");
-        }
-
         return Pedido.builder()
                 .mesaId(request.mesaId())
                 .comandaId(request.comandaId())
-                .itens(itens)
                 .dataHora(new Date())
                 .status(pedidoStateMachineService.getEstadoInicial())
                 .build();

@@ -42,13 +42,36 @@ Cria um novo pedido vinculado a uma comanda.
 - **Resposta:** `CreatePedidoResponse` com os detalhes do pedido criado
 
 #### 🔄 Atualizar Status do Pedido
-Atualiza o status de um pedido (por exemplo: `PENDENTE`, `EM_PREPARACAO`, `PRONTO`, `ENTREGUE`).
+Atualiza o status de um pedido enviando um evento (ex: `INICIAR_PREPARO`, `MARCAR_PRONTO`, `ENTREGAR`). O sistema utiliza uma State Machine para validar a transição.
 
 - **PATCH** `/pedidos/v1/{id}/status`
 - **Parâmetros de caminho:**
   - `id`: ID do pedido
-- **Query param:** `status` (ex: `PRONTO`)
-- **Resposta:** `UpdateStatusPedidoResponse` com status atualizado
+- **Query param:** `evento` (ex: `INICIAR_PREPARO`, `MARCAR_PRONTO`, `ENTREGAR`, `CANCELAR`)
+- **Resposta:** `UpdateStatusPedidoResponse` com status atualizado (baseado na transição da State Machine)
+
+---
+
+### ⚙️ State Machine (Fluxo de Pedidos)
+
+O sistema utiliza **Spring State Machine** para garantir a consistência dos estados dos pedidos. O status de um pedido não é alterado livremente, mas sim através de **eventos** que disparam transições permitidas.
+
+#### Estados Disponíveis:
+- `PENDENTE`: Estado inicial após criação.
+- `EM_PREPARACAO`: Pedido sendo preparado na cozinha.
+- `PRONTO`: Preparação finalizada.
+- `ENTREGUE`: Pedido entregue ao cliente na mesa.
+- `PAGO`: Pagamento confirmado e pedido encerrado.
+- `CANCELADO`: Pedido cancelado (possível a partir de PENDENTE, EM_PREPARACAO ou PRONTO).
+
+#### Eventos e Transições:
+| Evento | Origem | Destino |
+| :--- | :--- | :--- |
+| `INICIAR_PREPARO` | `PENDENTE` | `EM_PREPARACAO` |
+| `MARCAR_PRONTO` | `EM_PREPARACAO` | `PRONTO` |
+| `ENTREGAR` | `PRONTO` | `ENTREGUE` |
+| `CONFIRMAR_PAGAMENTO` | `ENTREGUE` | `PAGO` |
+| `CANCELAR` | `PENDENTE`, `EM_PREPARACAO`, `PRONTO` | `CANCELADO` |
 
 ---
 
@@ -64,11 +87,18 @@ Lista todos os pedidos pendentes ou em preparo (normalmente consumidos pela tela
 
 ---
 
+### 🗂️ Outros Endpoints
+
+Para mais detalhes, consulte a documentação Swagger.
+
+---
+
 ## 💡 Tecnologias
 
 - Java 21+
 - Spring Boot 3
 - Spring Web / Validation
+- Spring State Machine
 - Redis
 - Kafka
 - WebSocket (STOMP)
@@ -87,10 +117,10 @@ Lista todos os pedidos pendentes ou em preparo (normalmente consumidos pela tela
 
 ## 📡 WebSocket
 
-- **Endpoint WebSocket:** `/pedidos/v1/ws`
+- **Endpoint WebSocket:** `/pedidos/v1/ws` (Suporta SockJS)
 - **Tópicos:**
-  - `/topic/pedidos`: Receber pedidos em tempo real
-  - `/topic/pedidos/remover`: Remoção de pedidos entregues
+  - `/topic/pedidos`: Receber novos pedidos ou atualizações em tempo real
+  - `/topic/pedidos/remover`: Receber ID do pedido para remoção da tela da cozinha (quando entregue)
 
 ---
 
@@ -122,14 +152,16 @@ http://localhost:8080/swagger-ui.html
 
 ### Criar Pedido
 POST /pedidos/v1/create
+```json
 {
-  "mesaId": "abc123",
+  "mesaId": "MESA_01",
   "comandaId": "xyz789",
   "itensIds": ["item1", "item2"]
 }
 ```
-Atualizar Status
-PATCH /pedidos/v1/28e6bf1a/status?status=PRONTO
+
+### Atualizar Status
+PATCH /pedidos/v1/28e6bf1a/status?evento=MARCAR_PRONTO
 
 ---
 

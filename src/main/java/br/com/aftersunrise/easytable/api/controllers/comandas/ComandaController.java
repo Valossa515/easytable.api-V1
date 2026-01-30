@@ -36,6 +36,6 @@ public class ComandaController {
             @PathVariable String codigoQR) {
         var command = new ReabrirComandaCommand(codigoQR);
         return reabrirHandler.execute(command)
-                .thenApplyAsync(response -> responseEntityConverter.convert(response, false));
+                .thenApplyAsync(response -> responseEntityConverter.convert(response, true));
     }
 }
