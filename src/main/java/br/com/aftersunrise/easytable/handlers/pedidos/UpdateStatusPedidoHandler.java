@@ -68,12 +68,18 @@ public class UpdateStatusPedidoHandler  extends CommandHandlerBase<UpdateStatusP
                     redisService.deletar("pedido:" + pedido.getId());
                     webSocketPublisher.removerDaCozinha(pedido.getId());
                     logger.info("Pedido {} marcado como PRONTO, removido do Redis e notificado via WebSocket", pedido.getId());
+                } else if (pedido.getStatus() == PedidoStatus.SOLICITADO_TROCA || pedido.getStatus() == PedidoStatus.EM_PREPARACAO) {
+                    webSocketPublisher.enviarParaCozinha(pedido);
+                    logger.info("Pedido {} com status {}, notificado via WebSocket para cozinha", pedido.getId(), pedido.getStatus());
                 }
 
                 logger.info("Status do pedido atualizado para {}", pedido.getStatus());
 
                 return success(new UpdateStatusPedidoResponse(
                         pedido.getId(), pedido.getStatus().name()));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Validação de transição falhou: {}", e.getMessage());
+                return badRequest("PEDIDO003", e.getMessage());
             } catch (Exception e) {
                 logger.error("Erro ao atualizar status do pedido: {}", e.getMessage(), e);
                 return badRequest("PEDIDO002", MessageResources.get("error.pedido.status_update_failed"));

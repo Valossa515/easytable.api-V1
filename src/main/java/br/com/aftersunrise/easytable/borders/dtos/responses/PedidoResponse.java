@@ -7,7 +7,8 @@ import java.util.List;
 
 public record PedidoResponse(
         String id,
-        String mesaIds,
+        String mesaId,
+        Integer mesaNumero,
         List<ItemCardapio> itens,
         String dataHora,
         String status
@@ -16,9 +17,14 @@ public record PedidoResponse(
         return new PedidoResponse(
                 pedido.getId(),
                 pedido.getMesaId(),
+                null,
                 pedido.getItens(),
                 pedido.getDataHora().toString(),
                 pedido.getStatus().name()
         );
+    }
+
+    public PedidoResponse withMesaNumero(Integer numero) {
+        return new PedidoResponse(id, mesaId, numero, itens, dataHora, status);
     }
 }

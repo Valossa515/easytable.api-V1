@@ -47,8 +47,9 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository,
                 .validarTransicao(pedido.getStatus(), request.evento());
 
         if (proximoStatus == null) {
-            throw new IllegalArgumentException(
-                    MessageResources.get("error.pedido.invalid_transition"));
+            String msg = String.format("Transição inválida: status atual [%s], evento recebido [%s]", 
+                pedido.getStatus(), request.evento());
+            throw new IllegalArgumentException(msg);
         }
 
         pedido.setStatus(proximoStatus);
