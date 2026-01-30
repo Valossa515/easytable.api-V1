@@ -13,8 +13,8 @@ import br.com.aftersunrise.easytable.repositories.ItemCardapioRepository;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
 import br.com.aftersunrise.easytable.services.ComandaService;
 import br.com.aftersunrise.easytable.services.KafkaPedidoProducerService;
+import br.com.aftersunrise.easytable.services.PedidoStateMachineService;
 import br.com.aftersunrise.easytable.services.RedisService;
-import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
 import br.com.aftersunrise.easytable.shared.exceptions.BusinessException;
 import br.com.aftersunrise.easytable.shared.handlers.CommandHandlerBase;
 import br.com.aftersunrise.easytable.shared.handlers.HandlerResponseWithResult;
@@ -44,6 +44,7 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
     private final ComandaService comandaService;
     private final ItemCardapioRepository itemCardapioRepository;
     private final ComandaRepository comandaRepository;
+    private final PedidoStateMachineService pedidoStateMachineService;
 
 
     public CreatePedidoCommandHandler(
@@ -55,7 +56,8 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
             QrCodeProperties qrCodeProperties,
             ComandaService comandaService,
             ItemCardapioRepository itemCardapioRepository,
-            ComandaRepository comandaRepository) {
+            ComandaRepository comandaRepository,
+            PedidoStateMachineService pedidoStateMachineService) {
 
         super(logger, validator);
         this.pedidoRepository = pedidoRepository;
@@ -66,6 +68,7 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
         this.comandaService = comandaService;
         this.itemCardapioRepository = itemCardapioRepository;
         this.comandaRepository = comandaRepository;
+        this.pedidoStateMachineService = pedidoStateMachineService;
     }
 
 
@@ -110,7 +113,7 @@ public class CreatePedidoCommandHandler extends CommandHandlerBase<CreatePedidoC
         Pedido pedido = pedidoAdapter.toPedido(command);
         pedido.setComandaId(comanda.getId());
         pedido.setDataHora(new Date());
-        pedido.setStatus(PedidoStatus.PENDENTE);
+        pedido.setStatus(pedidoStateMachineService.getEstadoInicial());
         List<ItemCardapio> itensCompletos = itemCardapioRepository.findAllById(command.itensIds());
         pedido.setItens(itensCompletos);
         return pedido;

@@ -38,27 +38,25 @@ public PedidoAdapterImpl(ItemCardapioRepository itemCardapioRepository,
                 .comandaId(request.comandaId())
                 .itens(itens)
                 .dataHora(new Date())
-                .status(PedidoStatus.PENDENTE)
+                .status(pedidoStateMachineService.getEstadoInicial())
                 .build();
     }
 
     @Override
     public void updatePedido(Pedido pedido, UpdateStatusPedidoCommand request) {
-        if (request.status() != null) {
-            pedido.setStatus(request.status());
-            return;
+        if (request.evento() == null) {
+            throw new IllegalArgumentException(
+                    MessageResources.get("error.pedido.evento_required"));
         }
 
-        if (request.evento() != null) {
-            PedidoStatus proximoStatus = pedidoStateMachineService
-                    .validarTransicao(pedido.getStatus(), request.evento());
+        PedidoStatus proximoStatus = pedidoStateMachineService
+                .validarTransicao(pedido.getStatus(), request.evento());
 
-            if (proximoStatus == null) {
-                throw new IllegalArgumentException(
-                        MessageResources.get("error.pedido.invalid_transition"));
-            }
-
-            pedido.setStatus(proximoStatus);
+        if (proximoStatus == null) {
+            throw new IllegalArgumentException(
+                    MessageResources.get("error.pedido.invalid_transition"));
         }
+
+        pedido.setStatus(proximoStatus);
     }
 }

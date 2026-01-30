@@ -16,6 +16,17 @@ public class PedidoStateMachineService {
         this.stateMachineFactory = stateMachineFactory;
     }
 
+    /**
+     * Retorna o estado inicial configurado na state machine.
+     */
+    public PedidoStatus getEstadoInicial() {
+        StateMachine<PedidoStatus, PedidoStatusEvent> stateMachine = stateMachineFactory.getStateMachine();
+        stateMachine.start();
+        PedidoStatus estadoInicial = stateMachine.getState().getId();
+        stateMachine.stop();
+        return estadoInicial;
+    }
+
     public PedidoStatus validarTransicao(PedidoStatus statusAtual, PedidoStatusEvent evento) {
         StateMachine<PedidoStatus, PedidoStatusEvent> stateMachine = stateMachineFactory.getStateMachine();
         stateMachine.stop();

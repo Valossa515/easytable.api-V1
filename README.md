@@ -121,8 +121,6 @@ http://localhost:8080/swagger-ui.html
 ## 🧪 Exemplos de Teste
 
 ### Criar Pedido
-
-```json
 POST /pedidos/v1/create
 {
   "mesaId": "abc123",

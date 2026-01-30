@@ -20,9 +20,9 @@ public class UpdatePedidoValidator implements ConstraintValidator<ValidUpdatePed
             isValid = false;
         }
 
-        if (request.status() == null && request.evento() == null) {
-            context.buildConstraintViolationWithTemplate("Informe 'status' ou 'evento' para atualizar o pedido.")
-                    .addPropertyNode("status")
+        if (request.evento() == null) {
+            context.buildConstraintViolationWithTemplate("O campo 'evento' é obrigatório para transição de status via state machine.")
+                    .addPropertyNode("evento")
                     .addConstraintViolation();
             isValid = false;
         }

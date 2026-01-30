@@ -8,6 +8,7 @@ import br.com.aftersunrise.easytable.borders.entities.Pedido;
 import br.com.aftersunrise.easytable.repositories.ComandaRepository;
 import br.com.aftersunrise.easytable.repositories.PedidoRepository;
 import br.com.aftersunrise.easytable.shared.enums.PedidoStatus;
+import br.com.aftersunrise.easytable.shared.enums.PedidoStatusEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final ComandaRepository comandaRepository;
     private final RedisService redisService;
+    private final PedidoStateMachineService pedidoStateMachineService;
 
     public CompletableFuture<PedidoStatus> getStatus(String id) {
         return CompletableFuture.supplyAsync(() -> obterPedido(id).getStatus());
@@ -162,8 +164,13 @@ public class PedidoService {
             comandaRepository.save(comanda);
 
             for (Pedido pedido : pedidos) {
-                pedido.setStatus(PedidoStatus.PAGO);
-                pedidoRepository.save(pedido);
+                PedidoStatus novoStatus = pedidoStateMachineService
+                        .validarTransicao(pedido.getStatus(), PedidoStatusEvent.CONFIRMAR_PAGAMENTO);
+
+                if (novoStatus != null) {
+                    pedido.setStatus(novoStatus);
+                    pedidoRepository.save(pedido);
+                }
             }
 
             List<PedidoResponse> pedidosResponse = pedidos.stream()
