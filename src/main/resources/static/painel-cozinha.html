@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel da Cozinha - EasyTable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .pedido-card { transition: all 0.3s ease; }
+        .pedido-card:hover { transform: translateY(-5px); }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <header class="bg-slate-800 border-b border-slate-700 p-6 flex justify-between items-center sticky top-0 z-10 shadow-xl">
+        <div class="flex items-center gap-4">
+            <div class="bg-orange-500 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold">Painel da Cozinha</h1>
+                <p class="text-slate-400 text-sm flex items-center gap-2">
+                    <span id="status-dot" class="h-2 w-2 rounded-full bg-red-500"></span>
+                    <span id="status-text">Desconectado</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                <p class="text-xs text-slate-400 uppercase font-semibold">Total de Pedidos</p>
+                <p id="total-pedidos" class="text-2xl font-bold text-orange-500">0</p>
+            </div>
+            <button onclick="window.location.reload()" class="bg-slate-700 hover:bg-slate-600 p-2 rounded-full transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="p-8">
+        <div id="pedidos-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Pedidos serão inseridos aqui -->
+        </div>
+        
+        <!-- Estado Vazio -->
+        <div id="empty-state" class="flex flex-col items-center justify-center mt-20 text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="text-xl">Aguardando novos pedidos...</p>
+        </div>
+    </main>
+
+    <script>
+        let stompClient = null;
+        const pedidosContainer = document.getElementById('pedidos-container');
+        const emptyState = document.getElementById('empty-state');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const totalPedidosBadge = document.getElementById('total-pedidos');
+        
+        let totalPedidos = 0;
+
+        function connect() {
+            const socket = new SockJS('/pedidos/v1/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null; // Silencia logs de debug no console
+
+            stompClient.connect({}, function (frame) {
+                updateStatus(true);
+                console.log('Conectado: ' + frame);
+                
+                stompClient.subscribe('/topic/pedidos', function (message) {
+                    const pedido = JSON.parse(message.body);
+                    adicionarPedido(pedido);
+                });
+
+                stompClient.subscribe('/topic/pedidos/remover', function (message) {
+                    removerPedido(message.body);
+                });
+
+                // Carregar pedidos iniciais após conectar
+                carregarPedidosIniciais();
+            }, function (error) {
+                updateStatus(false);
+                console.log('Erro de conexão: ' + error);
+                setTimeout(connect, 5000); // Tenta reconectar em 5 segundos
+            });
+        }
+
+        function carregarPedidosIniciais() {
+            fetch('/cozinha/v1')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.pedidos) {
+                        // Limpa container antes de recarregar (opcional, dependendo da estratégia)
+                        // pedidosContainer.innerHTML = ''; 
+                        // totalPedidos = 0;
+                        
+                        // Ordenar por data (mais antigos primeiro para a cozinha)
+                        const pedidos = data.pedidos.sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+                        pedidos.forEach(pedido => adicionarPedido(pedido, false));
+                    }
+                })
+                .catch(error => console.error('Erro ao carregar pedidos iniciais:', error));
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusDot.classList.remove('bg-red-500');
+                statusDot.classList.add('bg-green-500');
+                statusText.innerText = 'Conectado em tempo real';
+            } else {
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-red-500');
+                statusText.innerText = 'Desconectado - Tentando reconectar...';
+            }
+        }
+
+        function adicionarPedido(pedido, playSound = true) {
+            // Se o pedido já existe, remove para atualizar (importante para mudanças de status)
+            const existingCard = document.getElementById(`pedido-${pedido.id}`);
+            if (existingCard) {
+                existingCard.remove();
+                totalPedidos--;
+            }
+
+            totalPedidos++;
+            atualizarContador();
+
+            const card = document.createElement('div');
+            card.id = `pedido-${pedido.id}`;
+            card.className = 'pedido-card bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-lg';
+            
+            const itensHtml = pedido.itens.map(item => `
+                <li class="flex justify-between items-center py-2 border-b border-slate-700 last:border-0">
+                    <span class="font-medium text-slate-200">${item.nome}</span>
+                    <span class="bg-slate-700 text-xs px-2 py-1 rounded text-slate-400">1x</span>
+                </li>
+            `).join('');
+
+            const horaFormatada = new Date(pedido.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const mesaDisplay = pedido.mesaNumero ? `MESA ${pedido.mesaNumero}` : `MESA (ID: ${pedido.mesaId.substring(0,4)})`;
+
+            const cardColor = (pedido.status === 'SOLICITADO_TROCA' || pedido.status === 'PENDENTE') ? 'bg-red-600' : 'bg-orange-500';
+            const btnColor = (pedido.status === 'SOLICITADO_TROCA' || pedido.status === 'PENDENTE') ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500';
+            const btnText = (pedido.status === 'SOLICITADO_TROCA' || pedido.status === 'PENDENTE') ? 'INICIAR PREPARO' : 'CONCLUIR';
+            const evento = (pedido.status === 'SOLICITADO_TROCA' || pedido.status === 'PENDENTE') ? 'INICIAR_PREPARO' : 'CONCLUIR_PREPARO';
+
+            card.innerHTML = `
+                <div class="${cardColor} px-4 py-2 flex justify-between items-center">
+                    <span class="font-bold text-white uppercase">${mesaDisplay}</span>
+                    <span class="text-xs font-semibold bg-white/20 px-2 py-0.5 rounded text-white capitalize">${pedido.status.replace('_', ' ')}</span>
+                </div>
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-[10px] text-slate-500 font-mono">ID: ${pedido.id.substring(0, 8)}...</span>
+                        <span class="text-xs text-orange-400 font-semibold">${horaFormatada}</span>
+                    </div>
+                    <ul class="mb-6">
+                        ${itensHtml}
+                    </ul>
+                    <button id="btn-acao-${pedido.id}" onclick="processarPedido('${pedido.id}', '${evento}')" class="w-full ${btnColor} text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="btn-text">${btnText}</span>
+                    </button>
+                </div>
+            `;
+
+            // Se for carregamento inicial, adiciona ao final, se for novo pedido (WS), adiciona no início
+            if (playSound) {
+                pedidosContainer.prepend(card);
+                playAlert();
+            } else {
+                pedidosContainer.appendChild(card);
+            }
+            
+            checkEmptyState();
+        }
+
+        function removerPedido(pedidoId) {
+            const card = document.getElementById(`pedido-${pedidoId}`);
+            if (card) {
+                card.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    if (card.parentNode) {
+                        card.remove();
+                        totalPedidos--;
+                        atualizarContador();
+                        checkEmptyState();
+                    }
+                }, 300);
+            }
+        }
+
+        function processarPedido(pedidoId, evento) {
+            const btn = document.getElementById(`btn-acao-${pedidoId}`);
+            const btnText = btn.querySelector('.btn-text');
+            const originalText = btnText.innerText;
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btnText.innerText = 'PROCESSANDO...';
+
+            fetch(`/pedidos/v1/${pedidoId}/status?evento=${evento}`, {
+                method: 'PATCH'
+            })
+            .then(response => {
+                if (response.ok) {
+                    if (evento === 'CONCLUIR_PREPARO') {
+                        removerPedido(pedidoId);
+                    } else {
+                        // Para outros eventos (como INICIAR_PREPARO), aguardamos o WS atualizar o card
+                        // ou poderíamos atualizar localmente se quiséssemos feedback imediato
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        btnText.innerText = originalText;
+                    }
+                } else {
+                    response.json().then(errorData => {
+                        console.error('Erro detalhado:', errorData);
+                        let msg = 'Erro ao processar pedido:';
+                        if (Array.isArray(errorData)) {
+                            errorData.forEach(err => {
+                                msg += `\n- ${err.code || err.campo || ''}: ${err.mensagem || err.message || JSON.stringify(err)}`;
+                            });
+                        } else {
+                            msg += ` ${JSON.stringify(errorData)}`;
+                        }
+                        alert(msg);
+                    }).catch(() => {
+                        alert('Erro ao processar pedido. Tente novamente.');
+                    });
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btnText.innerText = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao processar pedido.');
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnText.innerText = originalText;
+            });
+        }
+
+        function atualizarContador() {
+            totalPedidosBadge.innerText = totalPedidos;
+        }
+
+        function checkEmptyState() {
+            if (totalPedidos > 0) {
+                emptyState.classList.add('hidden');
+            } else {
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        function playAlert() {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, context.currentTime);
+                oscillator.connect(context.destination);
+                oscillator.start();
+                oscillator.stop(context.currentTime + 0.2);
+            } catch (e) {
+                console.log('Erro ao tocar áudio:', e);
+            }
+        }
+
+        // Iniciar conexão
+        connect();
+    </script>
+</body>
+</html>
